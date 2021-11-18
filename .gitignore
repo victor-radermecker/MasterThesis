@@ -14,3 +14,13 @@ ipython_config.py
 # VS Code
 .vscode/
 
+# Environment
+mfe_env/
+
+# Cache
+app/cache/
+app/__pycache__/
+
+# Logs
+notebooks/*.log
+notebooks/*.logs
