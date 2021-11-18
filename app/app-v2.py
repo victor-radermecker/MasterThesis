@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 import os
 from numpy import loadtxt
+import sys
 
 from PyQt5 import QtWebEngineWidgets
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -23,9 +24,11 @@ from data import DataHandler
 class Ui_MainWindow(object):
     def __init__(self):
         self.html_files = []
-        self.setupUi(MainWindow)
+        self.MainWindow = QtWidgets.QMainWindow()
+        self.setupUi(self.MainWindow)
         self.load_data()
         self.load_map()
+        self.MainWindow.show()
 
     def load_data(self):
         # Loading External Data
@@ -35,7 +38,8 @@ class Ui_MainWindow(object):
             self.comboOrigin.addItem(n)
 
     def load_map(self):
-        self.set_map()
+        url = self.set_map()
+        self.widget.load(url)
 
     def create_comboBoxes(self):
         # Initialising Combo Box
@@ -111,41 +115,70 @@ class Ui_MainWindow(object):
         """
         Closes the application.
         """
-        with open("html_to_del.txt", "w") as f:
+        print(self.html_files)
+
+        with open("Code/app/cache/temp.txt", "w") as f:
             for item in self.html_files:
                 f.write("%s\n" % item)
-        app.quit()
+
+        # app.quit()
+        # app.close()
+
+        print("Exiting the application.")
+
+        # sys.exit()
 
     def set_map(self):
 
         origin = self.comboOrigin.currentText()
         m = self.dh.get_map(origin)
 
-        tmp_file = QtCore.QTemporaryFile("XXXXXX.html", self.centralwidget)
+        tmp_file = QtCore.QTemporaryFile(
+            "Code/app/cache/XXXXXX.html", self.centralwidget
+        )
         if tmp_file.open():
-            m.save(tmp_file.fileName())
-            url = QtCore.QUrl.fromLocalFile(tmp_file.fileName())
+            fileName = tmp_file.fileName()
+            m.save(fileName)
+            self.html_files.append(fileName)
+            print(self.html_files)
+            url = QtCore.QUrl.fromLocalFile(fileName)
             self.widget.load(url)
-            self.html_files.append(tmp_file.fileName())
+
+        print("Cannot open file.")
+        print(tmp_file.open())
+
+        return url
 
     def on_combobox_changed(self, value):
         self.set_map()
 
 
-if __name__ == "__main__":
-    import sys
-
-    app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
+def main():
+    app = QtWidgets.QApplication([])
     ui = Ui_MainWindow()
-    MainWindow.show()
-    sys.exit(app.exec_())
+    # ui.show()
+    app.exec_()
 
-    # Cleaning
-    with open("html_to_del.txt") as f:
-        html_files = f.read().splitlines()
-    print(html_files)
-    print(f"Deleting {len(html_files)} temporary files...")
-    for f in html_files:
-        os.remove(f)
+
+if __name__ == "__main__":
+
+    # app = QtWidgets.QApplication(sys.argv)
+    # MainWindow = QtWidgets.QMainWindow()
+    # ui = Ui_MainWindow()
+    # MainWindow.show()
+    # app.exec_()
+
+    main()
+
+    print("Successfully exited the application.")
+
+    # # Cleaning
+    # with open("Code/app/cache/temp.txt") as f:
+    #     html_files = f.read().splitlines()
+    # print(html_files)
+    # print(f"Deleting {len(html_files)} temporary files...")
+    # for f in html_files:
+    #     os.remove(f)
+
+    # sys.exit()
 

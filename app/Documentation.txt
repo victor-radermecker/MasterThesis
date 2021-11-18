@@ -1,2 +1,2 @@
 Covnert from Qt Designer to .py
-pyuic5 -o app-v2.py app-v1.ui
+pyuic5 -o app-v3.py app-v2.ui

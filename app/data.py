@@ -8,41 +8,39 @@ import os
 
 # %%
 class DataHandler:
-    def __init__(self, preprocess=False):
-        self.load_data(preprocess)
+    def __init__(self, preprocess):
+        self.preprocess = preprocess
+        self.load_data()
 
     def get_map(self, origin):
         # ChoroPleth Map
         return self.generate_map(origin)
 
-    def load_data(self, preprocess):
+    def load_data(self):
 
         # Proximus Data
         dir_name = os.getcwd()
-        base_filename = "data\Proximus\proximusFrequentTrip_RandomlyGenerated.csv"
+        base_filename = "Code\data\proximus\proximusFrequentTrip_RandomlyGenerated.csv"
         data_path = os.path.join(dir_name, base_filename)
 
         self.df = pd.read_csv(data_path, encoding="unicode_escape",)
         self.ngbh = self.df["originNB"].unique()
 
         # GeoJson Data
-        if not preprocess:
-            base_filename = "data\maps\prox_neighbor\json\RBC_Neighborhoods_gps.json"
-
-        else:
+        if self.preprocess:
             base_filename = (
-                "data\maps\prox_neighbor\json\RBC_Neighborhoods_gps_preprocessed.json"
+                "Code\data\maps\prox_neighbor\json\RBC_Neighborhoods_gps.json"
             )
+        else:
+            print("Not preprocessing. Using already preprocessed data.")
+            base_filename = "Code\data\maps\prox_neighbor\json\RBC_Neighborhoods_gps_preprocessed.json"
 
-        print(dir_name)
-        print(base_filename)
         geo_json_path = os.path.join(dir_name, base_filename)
-        # path_test = "C:\\Users\\vic_t\\OneDrive\\MFE\\Code\\data\\maps\\prox_neighbor\\json\\RBC_Neighborhoods_gps.json"
 
         with open(geo_json_path) as sectors_file:
             self.geojson = json.load(sectors_file)
 
-        if preprocess:
+        if self.preprocess:
             self.pre_process_geojson()
 
     def pre_process_geojson(self):
