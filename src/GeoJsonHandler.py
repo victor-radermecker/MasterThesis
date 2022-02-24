@@ -43,7 +43,7 @@ class GeoJsonHandler:
         self.add_property(data, "CENTER_LONG", verbose=False)
         self.add_property(data, "CENTER_LAT", verbose=False)
 
-    def add_property(self, data, value, verbose=True):
+    def add_property(self, data, value, norm_by_area=False, verbose=True):
         """[summary] 
 
         Args:
@@ -55,13 +55,18 @@ class GeoJsonHandler:
         for index in range(len(self.geodata["features"])):
             # Extract correct element of GeoJSON
             temp_ = self.geodata["features"][index]["properties"]
+
             # Extract the property from dataframe
             val = data[data[self.name] == temp_[self.name]][value]
 
             if val.empty:
                 val = 0
             else:
-                val = val.item()
+                if norm_by_area:
+                    area_ = self.geodata["features"][index]["properties"]["AREA"]
+                    val = val.item() / area_
+                else:
+                    val = val.item()
 
             # Store results
             temp_[value] = val
@@ -77,7 +82,7 @@ class GeoJsonHandler:
             json.dump(self.geodata, f)
         print(f"Successfully saved geojson.")
 
-    def assign_data_to_neighborhood(self, data, output_path, verbose=False):
+    def assign_data_to_neighborhood(self, data, output_path, muni=False, verbose=False):
         """This function assigns the points of some external data to each sector of the geodata.
 
             Args:
@@ -87,6 +92,7 @@ class GeoJsonHandler:
                     - column3: longitude name as 'Long'
                     - column4: latitude name as 'Lat'
                 output_path ([String]): outpath path to save results in a CSV file.
+                muni ([Boolean]): Indicating whether we are using a municipalities geojson
 
             Returns:
                 [Pandas DataFrame]: Results
@@ -115,11 +121,22 @@ class GeoJsonHandler:
 
                 for k in range(nbr_polygons):
 
-                    poly_coords = Polygon(
-                        np.array(
-                            self.geodata["features"][n]["geometry"]["coordinates"][k]
-                        ).reshape(-1, 3)
-                    )
+                    if muni:
+                        poly_coords = Polygon(
+                            np.array(
+                                self.geodata["features"][n]["geometry"]["coordinates"][
+                                    k
+                                ]
+                            ).reshape(-1, 2)
+                        )
+                    else:
+                        poly_coords = Polygon(
+                            np.array(
+                                self.geodata["features"][n]["geometry"]["coordinates"][
+                                    k
+                                ]
+                            ).reshape(-1, 3)
+                        )
 
                     poly = gpd.GeoSeries([poly_coords])
 

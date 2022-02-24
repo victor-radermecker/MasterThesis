@@ -6,10 +6,19 @@ from GeoJsonHandler import GeoJsonHandler
 
 
 class BrusselsMap:
-    def __init__(self, geojson: GeoJsonHandler, width: int = 800, height: int = 800):
+    def __init__(
+        self,
+        geojson: GeoJsonHandler,
+        width: int = 800,
+        height: int = 800,
+        tiles=True,
+        tile="openstreetmap",
+    ):
         self.geojson = geojson
         self.width = width
         self.height = height
+        self.tiles = tiles
+        self.tile = tile
         self.init_map()
         self.init_colors()
 
@@ -18,15 +27,16 @@ class BrusselsMap:
 
     def init_map(self):
         # Brussels coordinates
-        coords = [50.84892175574389, 4.3514911042124345]
+        coords = [50.8333432, 4.3666294]
         self.map = folium.Map(
             width=self.width,
             height=self.height,
             location=[coords[0], coords[1]],
-            zoom_start=12.45,
-            tiles="openstreetmap",
+            zoom_start=12.15,
+            tiles=self.tile,
         )
-        self.add_tiles()
+        if self.tiles:
+            self.add_tiles()
 
     def add_tiles(self):
         # add tile layers to the map
@@ -79,6 +89,7 @@ class BrusselsMap:
             folium.Marker(
                 location=[point[2], point[1]],
                 popup=popup,
+                radius=50,
                 icon=folium.Icon(color=color, icon=icon, prefix="fa"),
             ).add_to(self.map)
 
@@ -189,6 +200,22 @@ class BrusselsMap:
         )
         colormap.add_to(self.map)
         self.map.add_child(NIL)
+
+    def build_sectors(self, data=None):
+        """
+        Add the boundaries of a specific geoJson file. 
+        If no file is given, the geojson file attached to the BrusselsMaps object is used.
+        """
+        if self.tiles:
+            print(
+                "Warning: Tiles activated - cannot plot boundaries. \n Please deactivate tiles using 'tiles=False' tag during BrusselsMap initialization."
+            )
+
+        if data == None:
+            data = self.geojson.geodata
+
+        layer = folium.GeoJson(data=data, name="muni").add_to(self.map)
+        self.map.fit_bounds(layer.get_bounds())
 
     def init_colors(self):
 

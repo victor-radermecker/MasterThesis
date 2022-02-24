@@ -1,4 +1,4 @@
-name: mfe_env
+name: mfe_envs
 channels:
   - anaconda
   - plotly/label/test
