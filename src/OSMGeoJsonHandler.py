@@ -5,6 +5,12 @@ from tqdm import tqdm
 from shapely.geometry import *
 import numpy as np
 
+# Used to measure the length of lines
+from shapely.geometry import LineString
+from shapely.ops import transform
+from functools import partial
+import pyproj
+
 # Local packages
 from GeoJsonHandler import GeoJsonHandler
 
@@ -25,9 +31,9 @@ class OSMGeoJsonHandler:
 
         self.gdf = gpd.GeoDataFrame.from_features(self.geodata["features"])
 
-        if self.feature_type == "university":
+        if self.feature_type in ["university", "health"]:
             self.gdf.rename(
-                columns={"@id": "ID", "name": "NAME", "amenity": "AMENITY"},
+                columns={"id": "ID", "name": "NAME", "amenity": "AMENITY"},
                 inplace=True,
             )
             self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
@@ -55,13 +61,47 @@ class OSMGeoJsonHandler:
             self.gdf.sort_values(by="TYPE", ascending=False)
             self.gdf.drop_duplicates(subset="ID", keep="first", inplace=True)
 
-        elif self.feature_type == "sustenance":
+        elif self.feature_type == "sport":
+            self.gdf.rename(
+                columns={"id": "ID", "name": "NAME",}, inplace=True,
+            )
+            self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
+            self.gdf = self.gdf[["ID", "TYPE", "NAME", "geometry"]]
+
+            # Drop LineString elements
+            self.gdf = self.gdf.drop(
+                self.gdf[self.gdf["geometry"].type == "LineString"].index
+            )
+
+        elif self.feature_type in ["sustenance", "health", "culture"]:
             self.gdf.rename(
                 columns={"id": "ID", "name": "NAME", "amenity": "AMENITY"},
                 inplace=True,
             )
             self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
             self.gdf = self.gdf[["ID", "TYPE", "NAME", "AMENITY", "geometry"]]
+
+        elif self.feature_type in ["shop", "office", "tourism", "residential"]:
+            self.gdf.rename(
+                columns={"id": "ID", "name": "NAME",}, inplace=True,
+            )
+            self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
+            self.gdf = self.gdf[["ID", "TYPE", "NAME", "geometry"]]
+
+        elif self.feature_type in ["lanes"]:
+            self.gdf.rename(
+                columns={"@id": "ID", "name": "NAME",}, inplace=True,
+            )
+            self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
+            self.gdf = self.gdf[["ID", "TYPE", "NAME", "geometry"]]
+            self.compute_length()
+
+        elif self.feature_type in ["parking"]:
+            self.gdf.rename(
+                columns={"@id": "ID", "name": "NAME",}, inplace=True,
+            )
+            self.gdf[["TYPE", "ID"]] = self.gdf["ID"].str.split("/", expand=True)
+            self.gdf = self.gdf[["ID", "TYPE", "NAME", "geometry"]]
 
         # Convert back to GeoDataFrame
         self.gdf = gpd.GeoDataFrame(self.gdf)
@@ -77,7 +117,13 @@ class OSMGeoJsonHandler:
 
         self.gdf["AREA"] = temp_.area / 1e6
 
-        if self.feature_type == "university":
+        if self.feature_type in [
+            "university",
+            "health",
+            "culture",
+            "office",
+            "tourism",
+        ]:
             # Fill null areas with the median (not the average as there are too many extreme values)
             self.gdf["AREA"].replace(
                 0, self.gdf[self.gdf["AREA"] != 0]["AREA"].median(), inplace=True
@@ -86,11 +132,12 @@ class OSMGeoJsonHandler:
         elif self.feature_type == "residential":
             pass  # @TODO
 
-        elif self.feature_type == "sustenance":
+        elif self.feature_type in ["sustenance", "parking"]:
+            print(len(self.gdf["AREA"][self.gdf["AREA"] == 0]))
             # Fill null areas with the mean
-            self.gdf["AREA"].replace(
-                0, self.gdf[self.gdf["AREA"] != 0]["AREA"].mean(), inplace=True
-            )
+            #self.gdf["AREA"].replace(
+            #    0, self.gdf[self.gdf["AREA"] != 0]["AREA"].mean(), inplace=True
+            #)
 
     def get_center(self):
         self.gdf["LAT"] = self.gdf.centroid.y
@@ -138,4 +185,14 @@ class OSMGeoJsonHandler:
                         break
                 if res[0]:
                     break  # Already found a match
+
+    def compute_length(self):
+
+        # Geometry transform function based on pyproj.transform
+        project = partial(
+            pyproj.transform, pyproj.Proj("EPSG:4326"), pyproj.Proj("EPSG:32633")
+        )
+        self.gdf["length"] = self.gdf["geometry"].progress_apply(
+            lambda line: transform(project, line).length
+        )
 
